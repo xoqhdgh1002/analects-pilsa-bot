@@ -21,8 +21,15 @@ logging.basicConfig(
 )
 
 # Constants
-FONT_PATH = "fonts/NotoSerifCJKkr-Regular.otf"
+FONT_PATH = Path("fonts/NotoSerifCJKkr-Regular.otf")
 OUTPUT_DIR = Path("output")
+
+# Check font file existence at startup
+if not FONT_PATH.exists():
+    print(f"오류: 폰트 파일을 찾을 수 없습니다: {FONT_PATH}")
+    print("fonts/ 디렉토리에 CJK 지원 폰트 파일을 배치해주세요.")
+    exit(1)
+
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,7 +51,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 2. Generate PDF (Using message_id for uniqueness)
         pdf_path = OUTPUT_DIR / f"analects_{chat_id}_{message_id}.pdf"
         config = Config()
-        generator = AnalectsTracingPDF(config, FONT_PATH)
+        generator = AnalectsTracingPDF(config, str(FONT_PATH))
         generator.generate(passages, str(pdf_path))
 
         # 3. Convert first page to PNG

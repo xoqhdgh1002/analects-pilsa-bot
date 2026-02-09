@@ -519,12 +519,8 @@ def main():
             return
         passages = load_passages(str(data_path))
     else:
-        # 기본값: data/analects_passages.json
-        default_path = Path(__file__).parent / "data" / "analects_passages.json"
-        if not default_path.exists():
-            print("오류: --input 또는 --data 옵션을 지정해주세요.")
-            return
-        passages = load_passages(str(default_path))
+        print("오류: --input (텍스트 파일) 또는 --data (JSON 파일) 옵션 중 하나를 반드시 지정해야 합니다.")
+        return
 
     if not passages:
         print("오류: 파싱된 구절이 없습니다. 입력 형식을 확인해주세요.")
