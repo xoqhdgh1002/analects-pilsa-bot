@@ -1,0 +1,71 @@
+# 필사 (pilsa) - 논어 필사 PDF 생성기 & 텔레그램 봇
+
+한자 원문이 희미하게 인쇄된 **습자(Tracing)용 PDF 필사 노트**를 자동 생성합니다. 텔레그램 봇을 통해 텍스트를 보내면 즉시 PDF와 이미지 미리보기를 받을 수 있습니다.
+
+## 주요 기능
+
+- **지능적 레이아웃:** 
+    - **자동 줄바꿈:** 한글 해석이 길어질 경우 페이지 너비에 맞춰 자동으로 줄바꿈 처리.
+    - **섹션 보존:** 필사 격자(따라쓰기/자유 필사)가 페이지 하단에서 잘리지 않도록 섹션 전체를 다음 페이지로 자동 이동.
+- **디자인 가이드:** 격자 셀 내부에 십자(+) 점선 가이드 포함, 글자 수에 따라 셀 크기 자동 조절 (20~30mm).
+- **멀티 채널 지원:** 텔레그램 봇 및 CLI 환경 지원.
+- **이미지 미리보기:** PDF 생성 시 첫 페이지를 PNG 이미지로 변환하여 텔레그램에서 즉시 확인 가능.
+
+## 설치 및 준비
+
+### 1. 시스템 의존성 설치
+PDF를 이미지로 변환하기 위해 `poppler-utils`가 필요합니다.
+- **Ubuntu/Debian:** `sudo apt-get install poppler-utils`
+- **macOS:** `brew install poppler`
+
+### 2. 파이썬 환경 설정
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. 폰트 준비
+CJK 폰트가 필요합니다. `fonts/NotoSerifCJKkr-Regular.otf` 경로에 폰트 파일을 배치하세요.
+
+## 사용법
+
+### 방법 1: 텔레그램 봇 (추천)
+1. `.env.example` 파일을 복사하여 `.env` 파일을 생성합니다.
+   ```bash
+   cp .env.example .env
+   ```
+2. `.env` 파일에 텔레그램 봇 토큰을 입력합니다.
+3. 봇을 실행합니다:
+   ```bash
+   python telegram_bot.py
+   ```
+4. 텔레그램에서 텍스트를 보냅니다.
+
+### 방법 2: CLI (직접 실행)
+```bash
+python analects_tracing.py --font fonts/NotoSerifCJKkr-Regular.otf --input input.txt
+```
+
+## 입력 형식 규칙
+
+| 줄 형식 | 인식 | 예시 |
+|---------|------|------|
+| `숫자.한글` (한자 없음) | 편 정보 | `9.자한편` |
+| `숫자.` + 한자 포함 | 구절 원문 | `29.子曰: "歲寒, ..."` |
+| `(괄호)` | 음독 | `(자왈: "세한, ...")` |
+| 나머지 텍스트 | 해석 | `공자께서 말씀하셨다. "날씨가..."` |
+
+## 프로젝트 구조
+
+```
+pilsa/
+├── analects_tracing.py      # PDF 생성 엔진 및 CLI
+├── telegram_bot.py          # 텔레그램 봇 서버
+├── requirements.txt         # 의존성 목록
+├── .env                     # 봇 토큰 (Git 제외)
+├── .env.example             # 환경 변수 템플릿
+├── .gitignore               # Git 무시 설정
+├── fonts/                   # CJK 폰트 디렉토리
+└── output/                  # 생성된 파일 저장소 (Git 제외)
+```
