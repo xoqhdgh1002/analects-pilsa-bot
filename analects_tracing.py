@@ -62,6 +62,10 @@ class Config:
     row_gap: float = 4.0
     passage_gap: float = 12.0
 
+    # Interpretation practice lines
+    interp_practice_lines: int = 3
+    interp_practice_height: float = 8.0
+
     # Colors (RGB)
     color_original: tuple = (30, 30, 30)
     color_interpretation: tuple = (80, 80, 80)
@@ -297,6 +301,32 @@ class AnalectsTracingPDF:
 
         return y
 
+    def render_interp_practice(self, y_start: float) -> float:
+        """한글 해석을 직접 쓸 수 있도록 가로줄(노트 라인)을 그립니다."""
+        cfg = self.cfg
+        y = y_start
+        
+        # 페이지 하단 체크
+        needed_h = cfg.interp_practice_lines * cfg.interp_practice_height
+        if y + needed_h > cfg.page_height - cfg.margin_bottom:
+            self.pdf.add_page()
+            y = cfg.margin_top
+
+        self.pdf.set_draw_color(*cfg.color_border)
+        self.pdf.set_line_width(0.2)
+        
+        # '해석 필사' 라벨 (작게)
+        self.pdf.set_font("CJK", "", 7)
+        self.pdf.set_text_color(*cfg.color_label)
+        self.pdf.text(cfg.margin_left, y + 4, "[해석 필사]")
+        y += 6
+
+        for _ in range(cfg.interp_practice_lines):
+            y += cfg.interp_practice_height
+            self.pdf.line(cfg.margin_left, y, cfg.page_width - cfg.margin_right, y)
+            
+        return y
+
     # ----- Passage renderer -----
 
     def render_passage(self, passage: PassageData):
@@ -334,6 +364,10 @@ class AnalectsTracingPDF:
 
         # Row 3: Empty practice grid (내부에서 페이지 체크 수행)
         y = self.render_practice_row(n, cell_size, cpl, y)
+        y += cfg.row_gap
+
+        # Row 4: Interpretation practice lines (가로줄 추가)
+        y = self.render_interp_practice(y)
         y += cfg.passage_gap
 
         self.cursor_y = y
