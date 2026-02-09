@@ -421,6 +421,14 @@ def parse_text_input(text: str) -> list[PassageData]:
         if not line:
             continue
 
+        # 날짜 무시 (예: 260209)
+        if re.match(r"^\d{6}$", line):
+            continue
+
+        # URL 무시 (예: https://naver.me/...)
+        if line.startswith("http"):
+            continue
+
         # 편 정보: "9.자한편" — 숫자 + 점 + 한글(한자 없음)
         m = re.match(r"^(\d+)\.\s*(.+)$", line)
         if m and not _contains_cjk(line):
