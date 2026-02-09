@@ -26,7 +26,9 @@ pip install -r requirements.txt
 ```
 
 ### 3. 폰트 준비
-CJK 폰트가 필요합니다. `fonts/NotoSerifCJKkr-Regular.otf` 경로에 폰트 파일을 배치하세요.
+CJK(한중일) 문자를 지원하는 TTF/OTF 폰트가 필수입니다. 
+- 봇 실행 전 `fonts/NotoSerifCJKkr-Regular.otf` 경로에 폰트 파일을 반드시 배치해야 합니다.
+- 폰트가 없으면 프로그램이 실행되지 않고 에러가 발생합니다.
 
 ## 사용법
 
@@ -40,12 +42,17 @@ CJK 폰트가 필요합니다. `fonts/NotoSerifCJKkr-Regular.otf` 경로에 폰�
    ```bash
    python telegram_bot.py
    ```
+   *(참고: `fonts/` 디렉토리에 폰트가 없으면 에러와 함께 종료됩니다.)*
 4. 텔레그램에서 텍스트를 보냅니다.
 
 ### 방법 2: CLI (직접 실행)
+CLI 실행 시 폰트 경로와 입력 소스(`--input` 또는 `--data`)를 반드시 지정해야 합니다.
 ```bash
 python analects_tracing.py --font fonts/NotoSerifCJKkr-Regular.otf --input input.txt
 ```
+- `--input`: 자유 형식 텍스트 파일
+- `--data`: 구절 데이터 JSON 파일
+- 두 옵션 중 하나라도 지정하지 않으면 에러가 발생합니다.
 
 ## 입력 형식 규칙
 
