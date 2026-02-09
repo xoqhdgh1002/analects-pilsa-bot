@@ -52,10 +52,12 @@ if st.button("PDF 생성하기"):
                         generator = AnalectsTracingPDF(config, str(FONT_PATH))
                         generator.generate(passages, str(pdf_path))
                         
-                        # 3. 미리보기 이미지 생성
-                        images = convert_from_path(str(pdf_path), first_page=1, last_page=1)
+                        # 3. 미리보기 이미지 생성 (모든 페이지)
+                        images = convert_from_path(str(pdf_path))
                         if images:
-                            st.image(images[0], caption="미리보기 (첫 페이지)", use_container_width=True)
+                            st.subheader("미리보기 (전체 페이지)")
+                            for i, image in enumerate(images):
+                                st.image(image, caption=f"{i+1} 페이지", use_container_width=True)
                         
                         # 4. 다운로드 버튼
                         with open(pdf_path, "rb") as f:
