@@ -64,7 +64,7 @@ class Config:
 
     # Interpretation practice lines
     interp_practice_lines: int = 3
-    interp_practice_height: float = 8.0
+    interp_practice_height: float = 12.0
 
     # Colors (RGB)
     color_original: tuple = (30, 30, 30)
