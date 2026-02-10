@@ -3,17 +3,6 @@
 논어 필사 PDF 생성기 (Analects Tracing PDF Generator)
 
 한자 원문이 희미하게(Ghost Text) 인쇄된 습자(Tracing)용 PDF 필사 노트를 생성합니다.
-
-사용법:
-    python analects_tracing.py --font /path/to/cjk_font.ttf --output output.pdf
-
-폰트 안내:
-    CJK(한중일) 문자를 지원하는 TTF 폰트가 필요합니다.
-    추천 폰트:
-    - Noto Sans CJK (https://fonts.google.com/noto)
-    - Noto Serif CJK
-    - 나눔명조 / 나눔고딕
-    - 본명조 / 본고딕
 """
 
 import argparse
@@ -77,7 +66,7 @@ class Config:
     color_border: tuple = (180, 180, 180)
     color_cross: tuple = (210, 210, 210)
     color_label: tuple = (60, 60, 60)
-    color_meaning_box: tuple = (200, 200, 200) # Color for meaning box border
+    color_meaning_box: tuple = (200, 200, 200)
 
     # Font size ratio (relative to cell size)
     font_ratio: float = 0.78
@@ -129,9 +118,6 @@ class AnalectsTracingPDF:
     def calculate_layout(self, n_chars: int) -> tuple[float, int]:
         """
         글자 수에 따라 셀 크기와 줄당 글자 수를 계산합니다.
-
-        Returns:
-            (cell_size_mm, chars_per_line)
         """
         cfg = self.cfg
         w = cfg.usable_width
@@ -145,12 +131,10 @@ class AnalectsTracingPDF:
             if cell >= cfg.min_cell_size:
                 return cell, n_chars
 
-        # 10자 이상 또는 한 줄에 안 맞는 경우: 한 줄에 최대한 맞추되 셀 크기 축소
         cell = w / n_chars
         if cell >= cfg.min_cell_size:
             return cell, n_chars
 
-        # 그래도 안 맞으면 줄바꿈 (min_cell_size 사용, 줄당 최대 글자 수)
         cell = cfg.min_cell_size
         cpl = int(w // cell)
         return cell, cpl
@@ -168,25 +152,16 @@ class AnalectsTracingPDF:
         self.pdf.set_line_width(cfg.dash_width)
         self.pdf.set_dash_pattern(dash=cfg.dash_length, gap=cfg.dash_gap)
 
-        # Horizontal center line
         mid_y = y + size / 2
         self.pdf.line(x, mid_y, x + size, mid_y)
-
-        # Vertical center line
         mid_x = x + size / 2
         self.pdf.line(mid_x, y, mid_x, y + size)
-
-        # Reset dash
         self.pdf.set_dash_pattern()
 
     def draw_grid_cell(self, x: float, y: float, size: float):
         """정사각형 격자 셀(테두리 + 십자 점선)을 그립니다."""
         cfg = self.cfg
-
-        # Draw cross guides first (behind border)
         self.draw_dashed_cross(x, y, size)
-
-        # Border
         self.pdf.set_draw_color(*cfg.color_border)
         self.pdf.set_line_width(cfg.border_width)
         self.pdf.rect(x, y, size, size)
@@ -196,8 +171,6 @@ class AnalectsTracingPDF:
         cfg = self.cfg
         self.pdf.set_draw_color(*cfg.color_meaning_box)
         self.pdf.set_line_width(0.2)
-        # 윗변은 그리지 않고(오픈된 느낌) 좌, 우, 아래만 그리거나
-        # 전체 사각형을 연하게 그림. 여기서는 전체 사각형 사용.
         self.pdf.rect(x, y, width, height)
 
     # ----- Row renderers -----
@@ -213,28 +186,23 @@ class AnalectsTracingPDF:
         sounds: list[str] = None,
     ) -> float:
         """
-        Row 1: 진한 원문 글자 (아래에 훈음 표시) + 음독 + 한글 해석 (자동 줄바꿈 지원)
+        Row 1: 진한 원문 글자 + 음독 + 한글 해석 (간격 및 레이아웃 최적화)
         """
         cfg = self.cfg
         font_size = self.calculate_font_size(cell_size)
         y = y_start
         
-        # 행 높이: 셀 크기 + 훈음 표시 높이
         row_height = cell_size + cfg.meaning_height
-
-        # chars와 sounds를 함께 묶어서 처리
-        # sounds가 없으면 None으로 채워진 리스트 생성
         if not sounds:
             sounds = [None] * len(chars)
 
-        # Chunking chars and sounds together
         lines_chars = [chars[i:i + chars_per_line] for i in range(0, len(chars), chars_per_line)]
         lines_sounds = [sounds[i:i + chars_per_line] for i in range(0, len(sounds), chars_per_line)]
 
         for line_chars, line_sounds in zip(lines_chars, lines_sounds):
             x = self._start_x(len(line_chars), cell_size)
             for ch, sound in zip(line_chars, line_sounds):
-                # 1. Original Character
+                # 1. Original Hanja
                 self.pdf.set_font("CJK", "", font_size)
                 self.pdf.set_text_color(*cfg.color_original)
                 self.pdf.text(
@@ -243,43 +211,40 @@ class AnalectsTracingPDF:
                     ch,
                 )
                 
-                # 2. Meaning (Hanja Hun-Eum) below character
-                # 소리(sound) 정보를 함께 넘겨서 정확한 훈음을 찾음
+                # 2. Meaning below
                 meaning = get_hanja_meaning(ch, preferred_sound=sound)
                 if meaning:
                     self.pdf.set_font("CJK", "", 7)
                     self.pdf.set_text_color(*cfg.color_interpretation)
-                    
                     m_width = self.pdf.get_string_width(meaning)
                     m_x = x + (cell_size - m_width) / 2
                     m_y = y + cell_size + cfg.meaning_height * 0.7
-                    
                     if m_width > cell_size + 2: 
                         self.pdf.set_font("CJK", "", 5)
                         m_width = self.pdf.get_string_width(meaning)
                         m_x = x + (cell_size - m_width) / 2
-                    
                     self.pdf.text(m_x, m_y, meaning)
-
                 x += cell_size
             y += row_height
 
+        # --- 음독 및 해석 간격 조정 ---
+        y += 2
         text_x = cfg.margin_left + 1
 
-        # Reading text (음독)
+        # 3. Reading (음독)
         if reading:
-            self.pdf.set_font("CJK", "", 8)
-            self.pdf.set_text_color(*cfg.color_interpretation)
-            self.pdf.text(text_x, y + cfg.reading_height * 0.65, reading)
-            y += cfg.reading_height
+            self.pdf.set_font("CJK", "", 10)
+            self.pdf.set_text_color(*cfg.color_original)
+            self.pdf.set_xy(text_x, y)
+            self.pdf.cell(0, 8, reading, border=0, ln=1)
+            y = self.pdf.get_y()
 
-        # Interpretation text (해석) - multi_cell 사용하여 자동 줄바꿈
+        # 4. Interpretation (해석)
         self.pdf.set_font("CJK", "", 9)
         self.pdf.set_text_color(*cfg.color_interpretation)
         self.pdf.set_xy(text_x, y)
-        # 너비는 가용 너비에서 마진을 뺀 값으로 설정
         self.pdf.multi_cell(cfg.usable_width - 2, 5, interpretation, border=0, align='L')
-        y = self.pdf.get_y() + 2  # multi_cell 이후 y 좌표 업데이트 및 여백 추가
+        y = self.pdf.get_y() + 4
 
         return y
 
@@ -288,27 +253,21 @@ class AnalectsTracingPDF:
         chars_per_line: int, y_start: float,
     ) -> float:
         """
-        Row 2: 연한 회색 글자 + 격자 + 십자 점선 (따라쓰기) + 훈음 쓰기 빈 칸
+        Row 2: 연한 회색 글자 + 격자 + 훈음 쓰기 빈 칸
         """
         cfg = self.cfg
         font_size = self.calculate_font_size(cell_size)
         y = y_start
-        
-        # 행 높이: 셀 크기 + 훈음 쓰기 박스 높이
         row_height = cell_size + cfg.meaning_box_height
-
-        # 페이지 하단 체크
         n_rows = math.ceil(len(chars) / chars_per_line)
         if y + (n_rows * row_height) > cfg.page_height - cfg.margin_bottom:
             self.pdf.add_page()
             y = cfg.margin_top
 
         lines = [chars[i:i + chars_per_line] for i in range(0, len(chars), chars_per_line)]
-
         for line_chars in lines:
             x = self._start_x(len(line_chars), cell_size)
             for ch in line_chars:
-                # 1. Grid & Ghost char
                 self.draw_grid_cell(x, y, cell_size)
                 self.pdf.set_font("CJK", "", font_size)
                 self.pdf.set_text_color(*cfg.color_ghost)
@@ -317,14 +276,9 @@ class AnalectsTracingPDF:
                     y + cell_size * 0.72,
                     ch,
                 )
-                
-                # 2. Blank Box for Meaning (훈음 쓰기 칸)
-                # 격자 바로 아래에 위치
                 self.draw_meaning_box(x, y + cell_size, cell_size, cfg.meaning_box_height)
-                
                 x += cell_size
             y += row_height
-
         return y
 
     def render_practice_row(
@@ -332,15 +286,11 @@ class AnalectsTracingPDF:
         chars_per_line: int, y_start: float,
     ) -> float:
         """
-        Row 3: 빈 격자 + 십자 점선 (자유 필사) + 훈음 쓰기 빈 칸
+        Row 3: 빈 격자 + 훈음 쓰기 빈 칸
         """
         cfg = self.cfg
         y = y_start
-        
-        # 행 높이: 셀 크기 + 훈음 쓰기 박스 높이
         row_height = cell_size + cfg.meaning_box_height
-
-        # 페이지 하단 체크
         n_rows = math.ceil(n_chars / chars_per_line)
         if y + (n_rows * row_height) > cfg.page_height - cfg.margin_bottom:
             self.pdf.add_page()
@@ -351,313 +301,132 @@ class AnalectsTracingPDF:
             n_in_line = min(remaining, chars_per_line)
             x = self._start_x(n_in_line, cell_size)
             for _ in range(n_in_line):
-                # 1. Grid
                 self.draw_grid_cell(x, y, cell_size)
-                
-                # 2. Blank Box for Meaning
                 self.draw_meaning_box(x, y + cell_size, cell_size, cfg.meaning_box_height)
-
                 x += cell_size
             remaining -= n_in_line
             y += row_height
-
         return y
 
     def render_interp_practice(self, y_start: float) -> float:
-        """한글 해석을 직접 쓸 수 있도록 가로줄(노트 라인)을 그립니다."""
+        """해석 필사 라인"""
         cfg = self.cfg
         y = y_start
-        
-        # 페이지 하단 체크
         needed_h = cfg.interp_practice_lines * cfg.interp_practice_height
         if y + needed_h > cfg.page_height - cfg.margin_bottom:
             self.pdf.add_page()
             y = cfg.margin_top
-
         self.pdf.set_draw_color(*cfg.color_border)
         self.pdf.set_line_width(0.2)
-        
-        # '해석 필사' 라벨 (작게)
         self.pdf.set_font("CJK", "", 7)
         self.pdf.set_text_color(*cfg.color_label)
         self.pdf.text(cfg.margin_left, y + 4, "[해석 필사]")
         y += 6
-
         for _ in range(cfg.interp_practice_lines):
             y += cfg.interp_practice_height
             self.pdf.line(cfg.margin_left, y, cfg.page_width - cfg.margin_right, y)
-            
         return y
 
     # ----- Passage renderer -----
 
     def render_passage(self, passage: PassageData):
-        """구절 하나를 렌더링합니다. 각 구절은 항상 새 페이지에서 시작합니다."""
+        """구절 렌더링"""
         cfg = self.cfg
         chars = list(passage.original)
         n = len(chars)
         cell_size, cpl = self.calculate_layout(n)
 
-        # 음독에서 한글 소리 추출 및 매핑
         sounds = []
         if passage.reading:
             extracted_sounds = list(_extract_hangul(passage.reading))
-            # 한자 개수와 한글 소리 개수가 일치할 때만 매핑 사용
             if len(extracted_sounds) == n:
                 sounds = extracted_sounds
             else:
-                # 개수가 맞지 않으면 매핑하지 않음 (기본 훈음 사용)
                 sounds = [None] * n
         else:
             sounds = [None] * n
 
-        # 항상 새 페이지 추가 (단, 첫 페이지가 비어있는 경우는 제외)
         if self.pdf.page == 0:
             self.pdf.add_page()
         else:
             self.pdf.add_page()
         
-        self.cursor_y = cfg.margin_top
-        y = self.cursor_y
-
-        # Label
+        y = cfg.margin_top
         self.pdf.set_font("CJK", "", 9)
         self.pdf.set_text_color(*cfg.color_label)
         self.pdf.text(cfg.margin_left, y + cfg.label_height * 0.65, passage.label)
         y += cfg.label_height
 
-        # Row 1: Original text + reading + interpretation
-        y = self.render_original_row(
-            chars, passage.interpretation, cell_size, cpl, y,
-            reading=passage.reading,
-            sounds=sounds,
-        )
+        y = self.render_original_row(chars, passage.interpretation, cell_size, cpl, y, reading=passage.reading, sounds=sounds)
         y += cfg.row_gap
-
-        # Row 2: Ghost text for tracing (내부에서 페이지 체크 수행)
         y = self.render_ghost_row(chars, cell_size, cpl, y)
         y += cfg.row_gap
-
-        # Row 3: Empty practice grid (내부에서 페이지 체크 수행)
         y = self.render_practice_row(n, cell_size, cpl, y)
         y += cfg.row_gap
-
-        # Row 4: Interpretation practice lines (가로줄 추가)
         y = self.render_interp_practice(y)
-        y += cfg.passage_gap
-
-        self.cursor_y = y
-
-    # ----- Main generation -----
 
     def generate(self, passages: list[PassageData], output_path: str):
-        """전체 PDF를 생성합니다."""
-        self.cursor_y = self.cfg.margin_top
-
         for passage in passages:
             self.render_passage(passage)
-
         self.pdf.output(output_path)
-        print(f"PDF 생성 완료: {output_path}")
 
 
 # ---------------------------------------------------------------------------
-# Data loading
+# Data loading & Utils
 # ---------------------------------------------------------------------------
 
 def _is_cjk(ch: str) -> bool:
-    """한자(CJK) 문자인지 판별합니다."""
-    return (
-        "\u4e00" <= ch <= "\u9fff"          # CJK Unified Ideographs
-        or "\u3400" <= ch <= "\u4dbf"       # CJK Unified Ideographs Extension A
-        or "\uf900" <= ch <= "\ufaff"       # CJK Compatibility Ideographs
-        or "\U00020000" <= ch <= "\U0002a6df"  # CJK Unified Ideographs Extension B
-    )
-
+    return ("\u4e00" <= ch <= "\u9fff" or "\u3400" <= ch <= "\u4dbf" or "\uf900" <= ch <= "\ufaff")
 
 def _contains_cjk(text: str) -> bool:
-    """텍스트에 한자(CJK)가 포함되어 있는지 확인합니다."""
     return any(_is_cjk(ch) for ch in text)
 
-
 def _extract_cjk(text: str) -> str:
-    """텍스트에서 한자(CJK) 문자만 추출합니다."""
     return "".join(ch for ch in text if _is_cjk(ch))
 
-
 def _extract_hangul(text: str) -> str:
-    """텍스트에서 한글(가-힣) 문자만 추출합니다."""
     return "".join(ch for ch in text if "\uac00" <= ch <= "\ud7a3")
 
-
 def parse_text_input(text: str) -> list[PassageData]:
-    """
-    자유 형식 텍스트를 파싱하여 PassageData 리스트로 변환합니다.
-
-    입력 형식 예시:
-        9.자한편
-        29.子曰: "歲寒, 然後知松栢之後彫也."
-        (자왈: "세한, 연후지송백지후조야.")
-
-        공자께서 말씀하셨다. "날씨가 추워진 뒤에야..."
-    """
     lines = text.strip().split("\n")
-    passages: list[PassageData] = []
-
-    chapter_num = ""
-    chapter_name = ""
-
-    # 현재 파싱 중인 구절
-    verse_num = ""
-    original = ""
-    reading = ""
-    interp_lines: list[str] = []
+    passages = []
+    chapter_num, chapter_name = "", ""
+    verse_num, original, reading, interp_lines = "", "", "", []
 
     def flush():
         nonlocal verse_num, original, reading, interp_lines
-        if not original:
-            return
+        if not original: return
         name = chapter_name.rstrip("편")
         label = f"{name} {chapter_num}-{verse_num}" if chapter_num else verse_num
-        passages.append(PassageData(
-            label=label,
-            original=original,
-            interpretation=" ".join(interp_lines).strip(),
-            reading=reading,
-        ))
-        verse_num = ""
-        original = ""
-        reading = ""
-        interp_lines = []
+        passages.append(PassageData(label=label, original=original, interpretation=" ".join(interp_lines).strip(), reading=reading))
+        verse_num, original, reading, interp_lines = "", "", "", []
 
     for raw_line in lines:
         line = raw_line.strip()
-
-        if not line:
-            continue
-
-        # 날짜 무시 (예: 260209)
-        if re.match(r"^\d{6}$", line):
-            continue
-
-        # URL 무시 (예: https://naver.me/...)
-        if line.startswith("http"):
-            continue
-
-        # 편 정보: "9.자한편" — 숫자 + 점 + 한글(한자 없음)
+        if not line or re.match(r"^\d{6}$", line) or line.startswith("http"): continue
         m = re.match(r"^(\d+)\.\s*(.+)$", line)
         if m and not _contains_cjk(line):
-            flush()
-            chapter_num = m.group(1)
-            chapter_name = m.group(2).strip()
-            continue
-
-        # 구절 원문: "29.子曰: ..." — 숫자 + 점 + 한자 포함
+            flush(); chapter_num, chapter_name = m.group(1), m.group(2).strip(); continue
         if m and _contains_cjk(line):
-            flush()
-            verse_num = m.group(1)
-            original = _extract_cjk(m.group(2))
-            continue
-
-        # 음독: "(자왈: ...)"
+            flush(); verse_num, original = m.group(1), _extract_cjk(m.group(2)); continue
         if line.startswith("(") and line.endswith(")"):
-            reading = line[1:-1].strip()
-            continue
-
-        # 나머지는 해석
+            reading = line[1:-1].strip(); continue
         interp_lines.append(line)
-
     flush()
     return passages
 
-
-def load_passages(json_path: str) -> list[PassageData]:
-    """JSON 파일에서 구절 데이터를 로드합니다."""
-    with open(json_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    return [
-        PassageData(
-            label=p["label"],
-            original=p["original"],
-            interpretation=p["interpretation"],
-            reading=p.get("reading", ""),
-        )
-        for p in data["passages"]
-    ]
-
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
 def main():
-    parser = argparse.ArgumentParser(
-        description="논어 필사 PDF 생성기 - 습자(Tracing)용 필사 노트를 생성합니다.",
-    )
-    parser.add_argument(
-        "--font",
-        required=True,
-        help="CJK 지원 TTF/OTF 폰트 파일 경로",
-    )
-
-    # 입력 소스 (둘 중 하나)
-    input_group = parser.add_mutually_exclusive_group()
-    input_group.add_argument(
-        "--input",
-        help="자유 형식 텍스트 파일 경로 (편명/원문/음독/해석 자동 파싱)",
-    )
-    input_group.add_argument(
-        "--data",
-        help="구절 데이터 JSON 파일 경로",
-    )
-
-    parser.add_argument(
-        "--output",
-        default="analects_tracing.pdf",
-        help="출력 PDF 파일 경로 (기본: analects_tracing.pdf)",
-    )
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--font", required=True)
+    parser.add_argument("--input")
+    parser.add_argument("--output", default="analects_tracing.pdf")
     args = parser.parse_args()
-
-    # Validate font file
-    font_path = Path(args.font)
-    if not font_path.exists():
-        print(f"오류: 폰트 파일을 찾을 수 없습니다: {font_path}")
-        print("CJK 지원 TTF/OTF 폰트 파일 경로를 확인해주세요.")
-        return
-
-    # Load passages
-    if args.input:
-        input_path = Path(args.input)
-        if not input_path.exists():
-            print(f"오류: 입력 파일을 찾을 수 없습니다: {input_path}")
-            return
-        text = input_path.read_text(encoding="utf-8")
-        passages = parse_text_input(text)
-    elif args.data:
-        data_path = Path(args.data)
-        if not data_path.exists():
-            print(f"오류: 데이터 파일을 찾을 수 없습니다: {data_path}")
-            return
-        passages = load_passages(str(data_path))
-    else:
-        print("오류: --input (텍스트 파일) 또는 --data (JSON 파일) 옵션 중 하나를 반드시 지정해야 합니다.")
-        return
-
-    if not passages:
-        print("오류: 파싱된 구절이 없습니다. 입력 형식을 확인해주세요.")
-        return
-
-    print(f"총 {len(passages)}개 구절을 로드했습니다.")
-    for p in passages:
-        print(f"  [{p.label}] {p.original} ({len(p.original)}자)")
-
-    # Generate PDF
+    if not Path(args.font).exists(): return
+    text = Path(args.input).read_text(encoding="utf-8")
+    passages = parse_text_input(text)
     config = Config()
-    generator = AnalectsTracingPDF(config, str(font_path))
+    generator = AnalectsTracingPDF(config, str(args.font))
     generator.generate(passages, args.output)
-
 
 if __name__ == "__main__":
     main()
