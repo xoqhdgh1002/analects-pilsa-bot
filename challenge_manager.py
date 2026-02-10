@@ -15,6 +15,7 @@ def _init_db():
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump({"logs": []}, f, ensure_ascii=False, indent=4)
 
+@st.cache_data
 def load_logs():
     """로그 데이터를 불러옵니다."""
     _init_db()
@@ -37,8 +38,13 @@ def add_log(name: str, passage_count: int):
     except Exception as e:
         print(f"Git pull warning: {e}")
 
-    # 2. 데이터 로드 및 추가
-    data = load_logs()
+    # 2. 데이터 로드 (캐시되지 않은 원본 읽기)
+    _init_db()
+    try:
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except:
+        data = {"logs": []}
     
     new_entry = {
         "name": name,
@@ -52,8 +58,11 @@ def add_log(name: str, passage_count: int):
     # 3. 파일 저장
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+    
+    # 4. 캐시 초기화
+    st.cache_data.clear()
 
-    # 4. GitHub Push
+    # 5. GitHub Push
     try:
         subprocess.run(["git", "add", DB_FILE], check=True)
         subprocess.run(["git", "commit", "-m", f"chore: update challenge log for {name}"], check=True)
@@ -63,6 +72,7 @@ def add_log(name: str, passage_count: int):
         print(f"Git sync failed: {e}")
         return False
 
+@st.cache_data
 def get_user_stats(name: str):
     """특정 사용자의 통계를 반환합니다."""
     data = load_logs()
@@ -73,6 +83,7 @@ def get_user_stats(name: str):
     
     return total_passages, total_days
 
+@st.cache_data
 def get_leaderboard():
     """전체 순위를 반환합니다."""
     data = load_logs()
