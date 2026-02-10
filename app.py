@@ -90,70 +90,66 @@ if 'preview_images' not in st.session_state:
 if 'total_passages' not in st.session_state:
     st.session_state.total_passages = 0
 
-tab1, tab2 = st.tabs(["🚀 작업실", "📖 사용 가이드"])
+# 전체 화면 좌우 분할
+col_left, col_right = st.columns([1, 1], gap="large")
 
-with tab1:
-    # 좌우 분할
-    col_left, col_right = st.columns([1, 1], gap="large")
-
-    with col_left:
-        st.markdown("### 🖋️ 데이터 입력")
-        user_input = st.text_area(
-            "필사할 내용을 아래 형식에 맞춰 입력해주세요.",
-            placeholder="""260210
+# [왼쪽 컬럼] 입력 및 생성
+with col_left:
+    st.markdown("### 🖋️ 데이터 입력")
+    user_input = st.text_area(
+        "필사할 내용을 아래 형식에 맞춰 입력해주세요.",
+        placeholder="""260210
 9.자한편
-30.子曰: "知者不惑, 仁者不憂, 勇자不懼."
+30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
 (자왈: "지자불혹, 인자불우, 용자불구.")
 
 공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다." """,
-            height=500,
-        )
-        
-        if st.button("📄 PDF 생성하기", type="primary", use_container_width=True):
-            if not user_input.strip():
-                st.warning("내용을 입력해주세요.")
-            else:
-                try:
-                    with st.spinner("전문 서예가가 PDF를 제작 중입니다..."):
-                        # 1. 파싱
-                        passages = parse_text_input(user_input)
-                        if not passages:
-                            st.error("입력된 텍스트에서 구절을 찾을 수 없습니다.")
+        height=600, # 왼쪽이 고정이므로 높이를 좀 더 시원하게
+        label_visibility="collapsed"
+    )
+    
+    if st.button("📄 PDF 생성하기", type="primary", use_container_width=True):
+        if not user_input.strip():
+            st.warning("내용을 입력해주세요.")
+        else:
+            try:
+                with st.spinner("전문 서예가가 PDF를 제작 중입니다..."):
+                    # 1. 파싱
+                    passages = parse_text_input(user_input)
+                    if not passages:
+                        st.error("입력된 텍스트에서 구절을 찾을 수 없습니다.")
+                    else:
+                        # 2. PDF 생성
+                        # 폰트 경로 설정
+                        font_path = Path("fonts/NotoSerifCJKkr-Regular.otf")
+                        if not font_path.exists():
+                            st.error("⚠️ 폰트 파일을 찾을 수 없습니다.")
                         else:
-                            # 2. PDF 생성
-                            # 폰트 경로 설정
-                            font_path = Path("fonts/NotoSerifCJKkr-Regular.otf")
-                            if not font_path.exists():
-                                st.error("⚠️ 폰트 파일을 찾을 수 없습니다.")
-                            else:
-                                with tempfile.TemporaryDirectory() as tmpdir:
-                                    pdf_path = Path(tmpdir) / "output.pdf"
-                                    config = Config()
-                                    generator = AnalectsTracingPDF(config, str(font_path))
-                                    generator.generate(passages, str(pdf_path))
-                                    
-                                    # 세션 상태에 결과 저장
-                                    with open(pdf_path, "rb") as f:
-                                        st.session_state.pdf_data = f.read()
-                                    st.session_state.preview_images = convert_from_path(str(pdf_path))
-                                    st.session_state.total_passages = len(passages)
-                                    st.rerun()
-                except Exception as e:
-                    st.error(f"오류가 발생했습니다: {e}")
+                            with tempfile.TemporaryDirectory() as tmpdir:
+                                pdf_path = Path(tmpdir) / "output.pdf"
+                                config = Config()
+                                generator = AnalectsTracingPDF(config, str(font_path))
+                                generator.generate(passages, str(pdf_path))
+                                
+                                # 세션 상태에 결과 저장
+                                with open(pdf_path, "rb") as f:
+                                    st.session_state.pdf_data = f.read()
+                                st.session_state.preview_images = convert_from_path(str(pdf_path))
+                                st.session_state.total_passages = len(passages)
+                                st.rerun() # 화면 갱신 (탭 1번으로 자동 이동 효과)
+            except Exception as e:
+                st.error(f"오류가 발생했습니다: {e}")
 
-    with col_right:
-        st.markdown("### 👀 미리보기 및 다운로드")
-        
+# [오른쪽 컬럼] 미리보기 및 가이드 (탭으로 분리)
+with col_right:
+    tab_preview, tab_guide = st.tabs(["👀 미리보기 & 다운로드", "📖 사용 가이드"])
+    
+    # 탭 1: 미리보기
+    with tab_preview:
         if st.session_state.pdf_data:
             st.success(f"🎉 총 {st.session_state.total_passages}개의 구절이 준비되었습니다!")
             
-            # 미리보기 영역 (테두리가 있는 스크롤 컨테이너)
-            with st.container(height=500, border=True):
-                if st.session_state.preview_images:
-                    for i, image in enumerate(st.session_state.preview_images):
-                        st.image(image, caption=f"{i+1} 페이지", use_container_width=True)
-            
-            # 다운로드 버튼 (오른쪽 아래)
+            # 다운로드 버튼 (상단 배치가 더 찾기 쉬울 수 있음)
             st.download_button(
                 label="📥 PDF 다운로드 하기",
                 data=st.session_state.pdf_data,
@@ -161,18 +157,27 @@ with tab1:
                 mime="application/pdf",
                 use_container_width=True
             )
+            
+            # 미리보기 영역
+            with st.container(height=600, border=True):
+                if st.session_state.preview_images:
+                    for i, image in enumerate(st.session_state.preview_images):
+                        st.image(image, caption=f"{i+1} 페이지", use_container_width=True)
         else:
-            # 결과가 없을 때의 자리 표시자
-            with st.container(height=500, border=True):
-                st.info("왼쪽에서 텍스트를 입력하고 'PDF 생성하기' 버튼을 누르면 여기에 결과가 나타납니다.")
+            # 빈 상태 안내
+            with st.container(height=600, border=True):
+                st.info("""
+                **👈 왼쪽에서 텍스트를 입력하고 'PDF 생성하기'를 눌러주세요.**
+                
+                생성이 완료되면 이곳에 미리보기가 자동으로 나타납니다.
+                """)
             st.button("📥 다운로드 (준비 안됨)", disabled=True, use_container_width=True)
 
-with tab2:
-    st.markdown("### 📋 올바른 입력 형식")
-    st.info("아래 순서대로 입력하면 가장 예쁜 PDF가 만들어집니다.")
-    
-    c1, c2 = st.columns(2)
-    with c1:
+    # 탭 2: 사용 가이드
+    with tab_guide:
+        st.markdown("### 📋 올바른 입력 형식")
+        st.info("아래 순서대로 입력하면 가장 예쁜 PDF가 만들어집니다.")
+        
         st.markdown("""
         **1. 날짜 (선택)**
         - 6자리 숫자 (예: `260210`)
@@ -182,31 +187,29 @@ with tab2:
         
         **3. 구절 원문**
         - `숫자.한자문장` (예: `30.子曰: ...`)
-        """)
-    with c2:
-        st.markdown("""
+        
         **4. 음독 (필수)**
         - `(한글소리)` (예: `(자왈: ...)`)
-        - 괄호안의 글자수로 한자 뜻을 매핑합니다.
+        - **중요**: 괄호 안의 글자 수를 기준으로 한자 훈음을 매핑합니다.
         
         **5. 한글 해석**
         - 자유로운 뜻풀이
         """)
-    
-    st.markdown("---")
-    st.subheader("💡 팁")
-    st.write("네이버 메모나 블로그에서 복사한 내용을 그대로 붙여넣어도 대부분 자동으로 인식합니다.")
-    
-    example_text = """260210
+        
+        st.markdown("---")
+        st.subheader("💡 팁")
+        st.write("네이버 메모나 블로그에서 복사한 내용을 그대로 붙여넣어도 대부분 자동으로 인식합니다.")
+        
+        example_text = """260210
 9.자한편
 30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
 (자왈: "지자불혹, 인자불우, 용자불구.")
 
 공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다." """
-    
-    st.code(example_text, language="text")
-    if st.button("위 예시 복사하기 (클립보드에는 직접 복사하세요)"):
-        st.toast("예시를 드래그해서 복사해주세요!")
+        
+        st.code(example_text, language="text")
+        if st.button("위 예시 복사하기 (클립보드에는 직접 복사하세요)"):
+            st.toast("예시를 드래그해서 복사해주세요!")
 
 st.markdown("---")
 st.caption("Analects Tracing Bot v2.0 | Powered by fpdf2 & Streamlit")
