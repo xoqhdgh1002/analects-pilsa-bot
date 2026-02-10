@@ -122,7 +122,7 @@ with st.sidebar:
         except Exception as e: st.error(f"오류: {e}")
 
     st.markdown("---")
-    if st.button("다른 이름으로 시작하기 (로그아웃)", variant="secondary"):
+    if st.button("다른 이름으로 시작하기 (로그아웃)"):
         st.session_state.user_name = None
         st.rerun()
 
