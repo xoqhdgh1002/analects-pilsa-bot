@@ -110,15 +110,15 @@ with st.sidebar:
             if new_char and new_meaning:
                 save_custom_meaning(new_char, new_meaning); st.rerun()
 
-    st.caption("데이터 서버 동기화")
-    if st.button("최종 저장 (Git Sync)", use_container_width=True):
+    st.caption("서버 데이터 보존")
+    if st.button("서버 DB에 최종 저장", use_container_width=True, type="primary"):
         try:
-            with st.spinner("동기화 중..."):
+            with st.spinner("DB 저장 중..."):
                 subprocess.run(["git", "add", "custom_meanings.json", "challenge_db.json"], check=False)
                 try: subprocess.run(["git", "commit", "-m", "chore: sync data"], check=False, capture_output=True)
                 except: pass
                 subprocess.run(["git", "push", "origin", "master"], check=True)
-                st.success("완료!")
+                st.success("DB 저장 완료!")
         except Exception as e: st.error(f"오류: {e}")
 
     st.markdown("---")
