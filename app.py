@@ -48,9 +48,9 @@ if 'preview_images' not in st.session_state:
 if st.session_state.user_name is None:
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.subheader("이름을 입력하고 필사를 시작하세요.")
-    with st.container(border=True):
+    with st.form("login_form"):
         input_name = st.text_input("닉네임 또는 이름", placeholder="예: 공자사랑", key="entry_name")
-        if st.button("시작하기", type="primary", use_container_width=True):
+        if st.form_submit_button("시작하기", type="primary", use_container_width=True):
             if input_name.strip():
                 st.session_state.user_name = input_name.strip()
                 st.rerun()
@@ -68,7 +68,7 @@ with st.sidebar:
     st.header(f"🏃 {user_name}님")
     d_count = get_user_stats(user_name)
     st.metric("누적 출석", f"{d_count}일")
-    
+
     with st.expander("🏆 명예의 전당 (Top 5)"):
         leaderboard = get_leaderboard()
         if leaderboard:
@@ -111,35 +111,37 @@ col_left, col_right = st.columns([1, 1], gap="large")
 
 with col_left:
     st.markdown("### 🖋️ 데이터 입력")
-    user_input = st.text_area(
-        "필사 내용을 입력하세요.",
-        placeholder="260210\n9.자한편\n30.子曰: \"知者不惑...\"",
-        height=600, label_visibility="collapsed"
-    )
-    
-    show_meaning = st.checkbox("훈음 표시", value=True, help="PDF에 한자의 훈음(뜻과 음)을 표시합니다.")
+    with st.form("pdf_form"):
+        user_input = st.text_area(
+            "필사 내용을 입력하세요.",
+            placeholder="260210\n9.자한편\n30.子曰: \"知者不惑...\"",
+            height=600, label_visibility="collapsed"
+        )
 
-    if st.button("📄 PDF 생성하기", type="primary", use_container_width=True):
-        if user_input.strip():
-            try:
-                with st.spinner("PDF 제작 중..."):
-                    passages = parse_text_input(user_input)
-                    if passages:
-                        font_path = Path("fonts/NotoSerifCJKkr-Regular.otf")
-                        with tempfile.TemporaryDirectory() as tmpdir:
-                            pdf_path = Path(tmpdir) / "output.pdf"
-                            config = Config(show_meaning=show_meaning)
-                            generator = AnalectsTracingPDF(config, str(font_path))
-                            generator.generate(passages, str(pdf_path))
-                            
-                            # 챌린지 기록 (구절 수 없이 이름만 전달)
-                            result = add_log(user_name)
-                            
-                            with open(pdf_path, "rb") as f:
-                                st.session_state.pdf_data = f.read()
-                            st.session_state.preview_images = convert_from_path(str(pdf_path))
-                            st.rerun()
-            except Exception as e: st.error(f"오류: {e}")
+        show_meaning = st.checkbox("훈음 표시", value=True, help="PDF에 한자의 훈음(뜻과 음)을 표시합니다.")
+
+        submitted = st.form_submit_button("📄 PDF 생성하기", type="primary", use_container_width=True)
+
+    if submitted and user_input.strip():
+        try:
+            with st.spinner("PDF 제작 중..."):
+                passages = parse_text_input(user_input)
+                if passages:
+                    font_path = Path("fonts/NotoSerifCJKkr-Regular.otf")
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        pdf_path = Path(tmpdir) / "output.pdf"
+                        config = Config(show_meaning=show_meaning)
+                        generator = AnalectsTracingPDF(config, str(font_path))
+                        generator.generate(passages, str(pdf_path))
+
+                        # 챌린지 기록 (구절 수 없이 이름만 전달)
+                        result = add_log(user_name)
+
+                        with open(pdf_path, "rb") as f:
+                            st.session_state.pdf_data = f.read()
+                        st.session_state.preview_images = convert_from_path(str(pdf_path))
+                        st.rerun()
+        except Exception as e: st.error(f"오류: {e}")
 
 with col_right:
     tab_p, tab_g = st.tabs(["👀 미리보기 & 다운로드", "📖 사용 가이드"])
@@ -156,7 +158,7 @@ with col_right:
 
     with tab_g:
         st.markdown("### 📋 입력 형식")
-        st.code("260210\n9.자한편\n30.子曰: \"知者不惑...\"\n(자왈: \"지자불혹...\")\n해석 내용...", language="text")
+        st.code("260210\n9.자한편\n30.子曰: \"知者不惑...\"\n(자왈: \"지자불혹...\")\n해석 내용...", language="text")
 
 st.markdown("---")
 st.caption(f"Analects Tracing Bot v2.0 | User: {user_name}")
