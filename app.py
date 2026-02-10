@@ -89,8 +89,6 @@ if 'preview_images' not in st.session_state:
     st.session_state.preview_images = []
 if 'total_passages' not in st.session_state:
     st.session_state.total_passages = 0
-if 'tabs_key' not in st.session_state:
-    st.session_state.tabs_key = 0
 
 # 전체 화면 좌우 분할
 col_left, col_right = st.columns([1, 1], gap="large")
@@ -102,11 +100,11 @@ with col_left:
         "필사할 내용을 아래 형식에 맞춰 입력해주세요.",
         placeholder="""260210
 9.자한편
-30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
+30.子曰: "知者不惑, 仁者不憂, 勇자不懼."
 (자왈: "지자불혹, 인자불우, 용자불구.")
 
 공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다." """,
-        height=600, # 왼쪽이 고정이므로 높이를 좀 더 시원하게
+        height=600,
         label_visibility="collapsed"
     )
     
@@ -137,20 +135,15 @@ with col_left:
                                     st.session_state.pdf_data = f.read()
                                 st.session_state.preview_images = convert_from_path(str(pdf_path))
                                 st.session_state.total_passages = len(passages)
-                                
-                                # 탭을 강제로 첫 번째(미리보기)로 돌리기 위해 키 변경
-                                st.session_state.tabs_key += 1
                                 st.rerun() # 화면 갱신
             except Exception as e:
                 st.error(f"오류가 발생했습니다: {e}")
 
 # [오른쪽 컬럼] 미리보기 및 가이드 (탭으로 분리)
 with col_right:
-    # key 파라미터가 지원되지 않는 버전을 위해 제거함
     tab_preview, tab_guide = st.tabs(["👀 미리보기 & 다운로드", "📖 사용 가이드"])
     
     # 탭 1: 미리보기
-    with tab_preview:
     with tab_preview:
         if st.session_state.pdf_data:
             st.success(f"🎉 총 {st.session_state.total_passages}개의 구절이 준비되었습니다!")
