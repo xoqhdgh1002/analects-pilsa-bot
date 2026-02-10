@@ -207,8 +207,6 @@ with col_right:
 공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다." """
         
         st.code(example_text, language="text")
-        if st.button("위 예시 복사하기 (클립보드에는 직접 복사하세요)"):
-            st.toast("예시를 드래그해서 복사해주세요!")
 
 st.markdown("---")
 st.caption("Analects Tracing Bot v2.0 | Powered by fpdf2 & Streamlit")
