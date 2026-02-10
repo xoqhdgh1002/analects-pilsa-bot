@@ -117,27 +117,10 @@ class AnalectsTracingPDF:
 
     def calculate_layout(self, n_chars: int) -> tuple[float, int]:
         """
-        글자 수에 따라 셀 크기와 줄당 글자 수를 계산합니다.
+        한자의 크기를 일정하게 유지하기 위해 고정된 레이아웃을 사용합니다.
+        셀 크기: 25mm, 줄당 글자 수: 7자
         """
-        cfg = self.cfg
-        w = cfg.usable_width
-
-        if n_chars <= 6:
-            cell = min(w / n_chars, cfg.max_cell_size)
-            return max(cell, cfg.min_cell_size), n_chars
-
-        if n_chars <= 9:
-            cell = w / n_chars
-            if cell >= cfg.min_cell_size:
-                return cell, n_chars
-
-        cell = w / n_chars
-        if cell >= cfg.min_cell_size:
-            return cell, n_chars
-
-        cell = cfg.min_cell_size
-        cpl = int(w // cell)
-        return cell, cpl
+        return 25.0, 7
 
     def calculate_font_size(self, cell_size: float) -> float:
         """셀 크기에 맞는 폰트 크기(pt)를 계산합니다."""
