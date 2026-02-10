@@ -10,12 +10,34 @@ import os
 # 페이지 설정
 st.set_page_config(page_title="논어 필사 PDF 생성기", page_icon="📝", layout="wide")
 
-# 탭 글자 크기 조절을 위한 CSS
+# 탭 및 모바일 글자 크기 조절을 위한 CSS
 st.markdown("""
     <style>
+    /* 기본 설정 (PC) */
     .stTabs [data-baseweb="tab"] p {
         font-size: 1.5rem;
         font-weight: bold;
+    }
+    
+    /* 모바일 전용 설정 (너비 768px 이하) */
+    @media (max-width: 768px) {
+        /* 탭 글자 크기 축소 */
+        .stTabs [data-baseweb="tab"] p {
+            font-size: 1.0rem !important;
+        }
+        /* 메인 타이틀 크기 축소 */
+        h1 {
+            font-size: 1.8rem !important;
+        }
+        /* 마크다운 헤더(###) 크기 축소 */
+        .stMarkdown h3 {
+            font-size: 1.2rem !important;
+        }
+        /* 전체 컨테이너 여백 조정 */
+        .main .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
