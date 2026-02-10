@@ -26,6 +26,31 @@ def _load_custom_dict():
         _CUSTOM_DICT = {}
     return _CUSTOM_DICT
 
+def get_custom_dict():
+    """사용자 정의 사전을 반환합니다."""
+    return _load_custom_dict()
+
+def save_custom_meaning(char: str, meaning: str):
+    """
+    사용자 정의 사전에 새로운 훈음을 추가/수정하고 파일에 저장합니다.
+    """
+    global _CUSTOM_DICT
+    if not char or not meaning:
+        return
+
+    # 메모리 업데이트
+    current_dict = _load_custom_dict()
+    current_dict[char] = meaning
+    _CUSTOM_DICT = current_dict
+
+    # 파일 저장
+    path = 'custom_meanings.json'
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(current_dict, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"사전 저장 실패: {e}")
+
 def get_hanja_meaning(char: str, preferred_sound: str = None) -> str:
     """
     한자의 훈음(뜻과 소리)을 반환합니다.

@@ -1,14 +1,86 @@
 import streamlit as st
 from pathlib import Path
 import tempfile
+import subprocess
 from analects_tracing import Config, AnalectsTracingPDF, parse_text_input
+from hanja_dictionary import get_custom_dict, save_custom_meaning
 from pdf2image import convert_from_path
 import os
 
 # 페이지 설정
-st.set_page_config(page_title="논어 필사 PDF 생성기", page_icon="📝")
+st.set_page_config(page_title="논어 필사 PDF 생성기", page_icon="📝", layout="wide")
 
 st.title("📝 논어 필사 PDF 생성기")
+
+# ---------------------------------------------------------------------------
+# Sidebar: 사용자 정의 사전 편집
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.header("📚 사용자 사전 편집")
+    st.caption("특정 한자의 뜻을 직접 지정할 수 있습니다.")
+    
+    with st.expander("사전 데이터 확인/수정", expanded=False):
+        # 현재 사전 표시
+        custom_dict = get_custom_dict()
+        if custom_dict:
+            st.dataframe(
+                [{"한자": k, "뜻": v} for k, v in custom_dict.items()],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("등록된 사용자 정의 뜻이 없습니다.")
+
+        st.markdown("---")
+        st.subheader("새로운 뜻 추가")
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            new_char = st.text_input("한자", max_chars=1, placeholder="예: 說")
+        with col2:
+            new_meaning = st.text_input("훈음 (뜻 소리)", placeholder="예: 기쁠 열")
+            
+        if st.button("사전 저장 (Local)", use_container_width=True):
+            if new_char and new_meaning:
+                save_custom_meaning(new_char, new_meaning)
+                st.success(f"저장 완료: {new_char} -> {new_meaning}")
+                st.rerun() # 화면 갱신
+            else:
+                st.warning("한자와 뜻을 모두 입력해주세요.")
+
+    st.markdown("### Git 동기화")
+    if st.button("GitHub에 변경사항 업로드", type="primary", use_container_width=True):
+        try:
+            with st.spinner("GitHub로 업로드 중..."):
+                # 1. Add
+                subprocess.run(["git", "add", "custom_meanings.json"], check=True)
+                
+                # 2. Commit (변경사항이 없으면 에러가 날 수 있으므로 try 처리)
+                try:
+                    subprocess.run(
+                        ["git", "commit", "-m", "chore: update custom meanings via streamlit app"], 
+                        check=True, 
+                        capture_output=True
+                    )
+                except subprocess.CalledProcessError:
+                    st.info("변경 사항이 없거나 이미 커밋되었습니다.")
+                
+                # 3. Push
+                result = subprocess.run(
+                    ["git", "push", "origin", "master"], 
+                    check=True, 
+                    capture_output=True,
+                    text=True
+                )
+                st.success("성공적으로 업로드되었습니다! 🎉")
+        except subprocess.CalledProcessError as e:
+            st.error(f"Git 업로드 실패: {e.stderr if hasattr(e, 'stderr') else str(e)}")
+        except Exception as e:
+            st.error(f"오류 발생: {e}")
+
+# ---------------------------------------------------------------------------
+# Main: PDF 생성
+# ---------------------------------------------------------------------------
 st.markdown("""
 텍스트를 입력하면 **추적(Tracing)용 필사 PDF**를 만들어 드립니다.  
 형식 예시: `29.子曰: "歲寒, 然後知松栢之後彫也."`
