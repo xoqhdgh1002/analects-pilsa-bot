@@ -25,6 +25,8 @@ from pathlib import Path
 
 from fpdf import FPDF
 
+from hanja_dictionary import get_hanja_meaning
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -59,6 +61,7 @@ class Config:
     label_height: float = 7.0
     interp_height: float = 8.0
     reading_height: float = 6.0
+    meaning_height: float = 5.0
     row_gap: float = 4.0
     passage_gap: float = 12.0
 
@@ -243,15 +246,18 @@ class AnalectsTracingPDF:
         chars_per_line: int, y_start: float,
     ) -> float:
         """
-        Row 2: 연한 회색 글자 + 격자 + 십자 점선 (따라쓰기)
+        Row 2: 연한 회색 글자 + 격자 + 십자 점선 (따라쓰기) + 훈음
         """
         cfg = self.cfg
         font_size = self.calculate_font_size(cell_size)
         y = y_start
+        
+        # 행 높이: 셀 크기 + 훈음 높이
+        row_height = cell_size + cfg.meaning_height
 
         # 페이지 하단 체크: 따라쓰기 행이 잘릴 것 같으면 새 페이지
         n_rows = math.ceil(len(chars) / chars_per_line)
-        if y + (n_rows * cell_size) > cfg.page_height - cfg.margin_bottom:
+        if y + (n_rows * row_height) > cfg.page_height - cfg.margin_bottom:
             self.pdf.add_page()
             y = cfg.margin_top
 
@@ -260,6 +266,7 @@ class AnalectsTracingPDF:
         for line_chars in lines:
             x = self._start_x(len(line_chars), cell_size)
             for ch in line_chars:
+                # 1. Grid & Ghost char
                 self.draw_grid_cell(x, y, cell_size)
                 self.pdf.set_font("CJK", "", font_size)
                 self.pdf.set_text_color(*cfg.color_ghost)
@@ -268,8 +275,29 @@ class AnalectsTracingPDF:
                     y + cell_size * 0.72,
                     ch,
                 )
+                
+                # 2. Meaning (Hanja Hun-Eum)
+                meaning = get_hanja_meaning(ch)
+                if meaning:
+                    # 훈음 폰트 설정 (작게)
+                    self.pdf.set_font("CJK", "", 7)
+                    self.pdf.set_text_color(*cfg.color_interpretation)
+                    
+                    # 텍스트 너비 계산하여 중앙 정렬
+                    m_width = self.pdf.get_string_width(meaning)
+                    m_x = x + (cell_size - m_width) / 2
+                    m_y = y + cell_size + cfg.meaning_height * 0.7
+                    
+                    # 셀 영역 밖으로 너무 나가면 글자 크기 더 줄이기
+                    if m_width > cell_size + 2: 
+                        self.pdf.set_font("CJK", "", 5)
+                        m_width = self.pdf.get_string_width(meaning)
+                        m_x = x + (cell_size - m_width) / 2
+                    
+                    self.pdf.text(m_x, m_y, meaning)
+
                 x += cell_size
-            y += cell_size
+            y += row_height
 
         return y
 
