@@ -117,6 +117,8 @@ with col_left:
         height=600, label_visibility="collapsed"
     )
     
+    show_meaning = st.checkbox("훈음 표시", value=True, help="PDF에 한자의 훈음(뜻과 음)을 표시합니다.")
+
     if st.button("📄 PDF 생성하기", type="primary", use_container_width=True):
         if user_input.strip():
             try:
@@ -126,7 +128,8 @@ with col_left:
                         font_path = Path("fonts/NotoSerifCJKkr-Regular.otf")
                         with tempfile.TemporaryDirectory() as tmpdir:
                             pdf_path = Path(tmpdir) / "output.pdf"
-                            generator = AnalectsTracingPDF(Config(), str(font_path))
+                            config = Config(show_meaning=show_meaning)
+                            generator = AnalectsTracingPDF(config, str(font_path))
                             generator.generate(passages, str(pdf_path))
                             
                             # 챌린지 기록 (구절 수 없이 이름만 전달)

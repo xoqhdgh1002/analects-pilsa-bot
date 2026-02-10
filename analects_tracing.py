@@ -68,6 +68,9 @@ class Config:
     color_label: tuple = (60, 60, 60)
     color_meaning_box: tuple = (200, 200, 200)
 
+    # 훈음 표시 여부
+    show_meaning: bool = True
+
     # Font size ratio (relative to cell size)
     font_ratio: float = 0.78
     mm_to_pt: float = 1.0 / 0.3528  # mm → pt conversion
@@ -120,7 +123,7 @@ class AnalectsTracingPDF:
         한자의 크기를 일정하게 유지하기 위해 고정된 레이아웃을 사용합니다.
         셀 크기: 25mm, 줄당 글자 수: 7자
         """
-        return 25.0, 7
+        return 22.0, 8
 
     def calculate_font_size(self, cell_size: float) -> float:
         """셀 크기에 맞는 폰트 크기(pt)를 계산합니다."""
@@ -175,7 +178,7 @@ class AnalectsTracingPDF:
         font_size = self.calculate_font_size(cell_size)
         y = y_start
         
-        row_height = cell_size + cfg.meaning_height
+        row_height = cell_size + (cfg.meaning_height if cfg.show_meaning else 0)
         if not sounds:
             sounds = [None] * len(chars)
 
@@ -195,18 +198,19 @@ class AnalectsTracingPDF:
                 )
                 
                 # 2. Meaning below
-                meaning = get_hanja_meaning(ch, preferred_sound=sound)
-                if meaning:
-                    self.pdf.set_font("CJK", "", 7)
-                    self.pdf.set_text_color(*cfg.color_interpretation)
-                    m_width = self.pdf.get_string_width(meaning)
-                    m_x = x + (cell_size - m_width) / 2
-                    m_y = y + cell_size + cfg.meaning_height * 0.7
-                    if m_width > cell_size + 2: 
-                        self.pdf.set_font("CJK", "", 5)
+                if cfg.show_meaning:
+                    meaning = get_hanja_meaning(ch, preferred_sound=sound)
+                    if meaning:
+                        self.pdf.set_font("CJK", "", 7)
+                        self.pdf.set_text_color(*cfg.color_interpretation)
                         m_width = self.pdf.get_string_width(meaning)
                         m_x = x + (cell_size - m_width) / 2
-                    self.pdf.text(m_x, m_y, meaning)
+                        m_y = y + cell_size + cfg.meaning_height * 0.7
+                        if m_width > cell_size + 2:
+                            self.pdf.set_font("CJK", "", 5)
+                            m_width = self.pdf.get_string_width(meaning)
+                            m_x = x + (cell_size - m_width) / 2
+                        self.pdf.text(m_x, m_y, meaning)
                 x += cell_size
             y += row_height
 
