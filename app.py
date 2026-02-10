@@ -89,6 +89,8 @@ if 'preview_images' not in st.session_state:
     st.session_state.preview_images = []
 if 'total_passages' not in st.session_state:
     st.session_state.total_passages = 0
+if 'tabs_key' not in st.session_state:
+    st.session_state.tabs_key = 0
 
 # 전체 화면 좌우 분할
 col_left, col_right = st.columns([1, 1], gap="large")
@@ -120,7 +122,6 @@ with col_left:
                         st.error("입력된 텍스트에서 구절을 찾을 수 없습니다.")
                     else:
                         # 2. PDF 생성
-                        # 폰트 경로 설정
                         font_path = Path("fonts/NotoSerifCJKkr-Regular.otf")
                         if not font_path.exists():
                             st.error("⚠️ 폰트 파일을 찾을 수 없습니다.")
@@ -136,20 +137,27 @@ with col_left:
                                     st.session_state.pdf_data = f.read()
                                 st.session_state.preview_images = convert_from_path(str(pdf_path))
                                 st.session_state.total_passages = len(passages)
-                                st.rerun() # 화면 갱신 (탭 1번으로 자동 이동 효과)
+                                
+                                # 탭을 강제로 첫 번째(미리보기)로 돌리기 위해 키 변경
+                                st.session_state.tabs_key += 1
+                                st.rerun() # 화면 갱신
             except Exception as e:
                 st.error(f"오류가 발생했습니다: {e}")
 
 # [오른쪽 컬럼] 미리보기 및 가이드 (탭으로 분리)
 with col_right:
-    tab_preview, tab_guide = st.tabs(["👀 미리보기 & 다운로드", "📖 사용 가이드"])
+    # key를 부여하여 생성이 완료될 때마다 탭을 초기화(첫 번째 탭으로 이동)함
+    tab_preview, tab_guide = st.tabs(
+        ["👀 미리보기 & 다운로드", "📖 사용 가이드"], 
+        key=f"tabs_{st.session_state.tabs_key}"
+    )
     
     # 탭 1: 미리보기
     with tab_preview:
         if st.session_state.pdf_data:
             st.success(f"🎉 총 {st.session_state.total_passages}개의 구절이 준비되었습니다!")
             
-            # 다운로드 버튼 (상단 배치가 더 찾기 쉬울 수 있음)
+            # 다운로드 버튼
             st.download_button(
                 label="📥 PDF 다운로드 하기",
                 data=st.session_state.pdf_data,
