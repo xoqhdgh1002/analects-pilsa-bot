@@ -96,14 +96,14 @@ def get_leaderboard():
         stats[name]["total_passages"] += log["count"]
         stats[name]["days"].add(log["date"])
         
-    # 리스트로 변환 및 정렬
+    # 리스트로 변환
     leaderboard = []
     for name, stat in stats.items():
         leaderboard.append({
             "이름": name,
-            "누적 구절": stat["total_passages"],
-            "출석 일수": len(stat["days"])
+            "출석 일수": len(stat["days"]),
+            "누적 구절": stat["total_passages"]
         })
     
-    # 누적 구절 순으로 정렬
-    return sorted(leaderboard, key=lambda x: x["누적 구절"], reverse=True)
+    # 출석 일수 순으로 정렬 (일수가 같으면 누적 구절 순)
+    return sorted(leaderboard, key=lambda x: (x["출석 일수"], x["누적 구절"]), reverse=True)

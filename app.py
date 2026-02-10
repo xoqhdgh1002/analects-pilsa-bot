@@ -70,8 +70,8 @@ with st.sidebar:
     st.header(f"🏃 {user_name}님")
     p_count, d_count = get_user_stats(user_name) 
     col_m1, col_m2 = st.columns(2)
-    col_m1.metric("누적 구절", f"{p_count}개")
-    col_m2.metric("출석 일수", f"{d_count}일")
+    col_m1.metric("누적 출석", f"{d_count}일")
+    col_m2.metric("누적 구절", f"{p_count}개")
     
     with st.expander("🏆 명예의 전당 (Top 5)"):
         leaderboard = get_leaderboard()
