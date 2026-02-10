@@ -82,75 +82,90 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # Main: UI Layout
 # ---------------------------------------------------------------------------
+# Session State 초기화
+if 'pdf_data' not in st.session_state:
+    st.session_state.pdf_data = None
+if 'preview_images' not in st.session_state:
+    st.session_state.preview_images = []
+if 'total_passages' not in st.session_state:
+    st.session_state.total_passages = 0
+
 tab1, tab2 = st.tabs(["🚀 작업실", "📖 사용 가이드"])
 
 with tab1:
-    st.markdown("### 🖋️ 필사 데이터 입력")
-    
-    # 입력 공간을 카드 느낌으로 구성
-    with st.container(border=True):
+    # 좌우 분할
+    col_left, col_right = st.columns([1, 1], gap="large")
+
+    with col_left:
+        st.markdown("### 🖋️ 데이터 입력")
         user_input = st.text_area(
             "필사할 내용을 아래 형식에 맞춰 입력해주세요.",
             placeholder="""260210
 9.자한편
-30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
+30.子曰: "知者不惑, 仁者不憂, 勇자不懼."
 (자왈: "지자불혹, 인자불우, 용자불구.")
 
 공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다." """,
-            height=350,
-            label_visibility="collapsed"
+            height=500,
         )
         
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            st.caption("💡 여러 구절을 한 번에 넣어도 각각의 페이지로 만들어집니다.")
-        with col3:
-            generate_btn = st.button("📄 PDF 생성하기", type="primary", use_container_width=True)
+        if st.button("📄 PDF 생성하기", type="primary", use_container_width=True):
+            if not user_input.strip():
+                st.warning("내용을 입력해주세요.")
+            else:
+                try:
+                    with st.spinner("전문 서예가가 PDF를 제작 중입니다..."):
+                        # 1. 파싱
+                        passages = parse_text_input(user_input)
+                        if not passages:
+                            st.error("입력된 텍스트에서 구절을 찾을 수 없습니다.")
+                        else:
+                            # 2. PDF 생성
+                            # 폰트 경로 설정
+                            font_path = Path("fonts/NotoSerifCJKkr-Regular.otf")
+                            if not font_path.exists():
+                                st.error("⚠️ 폰트 파일을 찾을 수 없습니다.")
+                            else:
+                                with tempfile.TemporaryDirectory() as tmpdir:
+                                    pdf_path = Path(tmpdir) / "output.pdf"
+                                    config = Config()
+                                    generator = AnalectsTracingPDF(config, str(font_path))
+                                    generator.generate(passages, str(pdf_path))
+                                    
+                                    # 세션 상태에 결과 저장
+                                    with open(pdf_path, "rb") as f:
+                                        st.session_state.pdf_data = f.read()
+                                    st.session_state.preview_images = convert_from_path(str(pdf_path))
+                                    st.session_state.total_passages = len(passages)
+                                    st.rerun()
+                except Exception as e:
+                    st.error(f"오류가 발생했습니다: {e}")
 
-    if generate_btn:
-        if not user_input.strip():
-            st.warning("내용을 입력해주세요.")
+    with col_right:
+        st.markdown("### 👀 미리보기 및 다운로드")
+        
+        if st.session_state.pdf_data:
+            st.success(f"🎉 총 {st.session_state.total_passages}개의 구절이 준비되었습니다!")
+            
+            # 미리보기 영역 (테두리가 있는 스크롤 컨테이너)
+            with st.container(height=500, border=True):
+                if st.session_state.preview_images:
+                    for i, image in enumerate(st.session_state.preview_images):
+                        st.image(image, caption=f"{i+1} 페이지", use_container_width=True)
+            
+            # 다운로드 버튼 (오른쪽 아래)
+            st.download_button(
+                label="📥 PDF 다운로드 하기",
+                data=st.session_state.pdf_data,
+                file_name="analects_tracing.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
         else:
-            try:
-                with st.spinner("전문 서예가가 PDF를 제작 중입니다..."):
-                    # 1. 파싱
-                    passages = parse_text_input(user_input)
-                    if not passages:
-                        st.error("입력된 텍스트에서 구절을 찾을 수 없습니다. 형식을 확인해주세요.")
-                    else:
-                        # 2. 임시 파일 생성
-                        with tempfile.TemporaryDirectory() as tmpdir:
-                            pdf_path = Path(tmpdir) / "output.pdf"
-                            
-                            config = Config()
-                            generator = AnalectsTracingPDF(config, str(FONT_PATH))
-                            generator.generate(passages, str(pdf_path))
-                            
-                            # 성공 섹션
-                            st.success(f"🎉 총 {len(passages)}개의 구절로 PDF를 생성했습니다!")
-                            
-                            # 다운로드 및 미리보기 레이아웃
-                            d_col1, d_col2 = st.columns([1, 1])
-                            with d_col1:
-                                with open(pdf_path, "rb") as f:
-                                    st.download_button(
-                                        label="📥 PDF 다운로드 하기",
-                                        data=f,
-                                        file_name="analects_tracing.pdf",
-                                        mime="application/pdf",
-                                        use_container_width=True
-                                    )
-                            
-                            # 3. 미리보기 이미지 생성
-                            images = convert_from_path(str(pdf_path))
-                            if images:
-                                st.markdown("---")
-                                st.subheader("👀 미리보기")
-                                for i, image in enumerate(images):
-                                    with st.expander(f"📄 {i+1} 페이지 미리보기", expanded=(i==0)):
-                                        st.image(image, use_container_width=True)
-            except Exception as e:
-                st.error(f"오류가 발생했습니다: {e}")
+            # 결과가 없을 때의 자리 표시자
+            with st.container(height=500, border=True):
+                st.info("왼쪽에서 텍스트를 입력하고 'PDF 생성하기' 버튼을 누르면 여기에 결과가 나타납니다.")
+            st.button("📥 다운로드 (준비 안됨)", disabled=True, use_container_width=True)
 
 with tab2:
     st.markdown("### 📋 올바른 입력 형식")
