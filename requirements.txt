@@ -5,3 +5,4 @@ pdf2image>=1.17.0
 python-dotenv>=1.0.0
 streamlit
 hanjadict>=0.4.1
+pandas
