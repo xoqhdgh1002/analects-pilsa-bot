@@ -68,20 +68,20 @@ user_name = st.session_state.user_name
 
 with st.sidebar:
     st.header(f"🏃 {user_name}님")
-    p_count, d_count = get_user_stats(user_name) # 캐시된 데이터 사용
+    p_count, d_count = get_user_stats(user_name) 
     col_m1, col_m2 = st.columns(2)
     col_m1.metric("누적 구절", f"{p_count}개")
     col_m2.metric("출석 일수", f"{d_count}일")
     
     with st.expander("🏆 명예의 전당 (Top 5)"):
-        leaderboard = get_leaderboard() # 캐시된 데이터 사용
+        leaderboard = get_leaderboard()
         if leaderboard:
             st.dataframe(pd.DataFrame(leaderboard).head(5), use_container_width=True, hide_index=True)
 
     st.markdown("---")
     st.header("📚 한자 사전 관리")
     with st.expander("사전 데이터 확인/수정"):
-        custom_dict = get_custom_dict() # 캐시된 데이터 사용
+        custom_dict = get_custom_dict()
         if custom_dict:
             st.dataframe([{"한자": k, "뜻": v} for k, v in custom_dict.items()], use_container_width=True, hide_index=True)
         st.subheader("한자 뜻 고치기")
@@ -101,7 +101,7 @@ with st.sidebar:
                 try: subprocess.run(["git", "commit", "-m", "chore: sync"], timeout=5, capture_output=True, check=False)
                 except: pass
                 subprocess.run(["git", "push", "origin", "master"], timeout=30, check=True)
-                st.cache_data.clear() # 저장 후 모든 데이터 캐시 초기화
+                st.cache_data.clear()
                 st.success("완료!")
         except Exception as e: st.error(f"실패: {e}")
 
@@ -116,8 +116,20 @@ col_left, col_right = st.columns([1, 1], gap="large")
 with col_left:
     st.markdown("### 🖋️ 데이터 입력")
     user_input = st.text_area(
-        "필사 내용을 입력하세요.",
-        placeholder="260210\n9.자한편\n30.子曰: \"知者不惑...\"",
+        "필사할 내용을 입력하세요.",
+        placeholder="""260210
+9.자한편
+30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
+(자왈: "지자불혹, 인자불우, 용자불구.")
+
+공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다."
+
+260210
+9.자한편
+29.子曰: "歲寒, 然後知松栢之後彫也."
+(자왈: "세한, 연후지송백지후조야.")
+
+공자께서 말씀하셨다. "날씨가 추워진 뒤에야 소나무와 잣나무가 늦게 시듦을 안다." """,
         height=600, label_visibility="collapsed"
     )
     
@@ -154,8 +166,20 @@ with col_right:
                 st.info("👈 왼쪽에서 입력 후 생성 버튼을 눌러주세요.")
 
     with tab_g:
-        st.markdown("### 📋 입력 형식")
-        st.code("260210\n9.자한편\n30.子曰: \"知者不惑...\"\n(자왈: \"지자불혹...\")\n해석 내용...", language="text")
+        st.markdown("### 📋 입력 형식 가이드")
+        st.markdown("""
+        **1. 날짜**: 6자리 숫자 (선택)
+        **2. 편명**: 숫자.이름 (예: 9.자한편)
+        **3. 원문**: 숫자.한자 (예: 30.子曰: ...)
+        **4. 음독**: (한글소리) - *필수*
+        **5. 해석**: 한글 뜻풀이
+        """)
+        st.code("""260210
+9.자한편
+30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
+(자왈: "지자불혹, 인자불우, 용자불구.")
+
+공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다." """, language="text")
 
 st.markdown("---")
 st.caption(f"Analects Tracing Bot v2.0 | User: {user_name}")
