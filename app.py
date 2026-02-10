@@ -146,13 +146,11 @@ with col_left:
 
 # [오른쪽 컬럼] 미리보기 및 가이드 (탭으로 분리)
 with col_right:
-    # key를 부여하여 생성이 완료될 때마다 탭을 초기화(첫 번째 탭으로 이동)함
-    tab_preview, tab_guide = st.tabs(
-        ["👀 미리보기 & 다운로드", "📖 사용 가이드"], 
-        key=f"tabs_{st.session_state.tabs_key}"
-    )
+    # key 파라미터가 지원되지 않는 버전을 위해 제거함
+    tab_preview, tab_guide = st.tabs(["👀 미리보기 & 다운로드", "📖 사용 가이드"])
     
     # 탭 1: 미리보기
+    with tab_preview:
     with tab_preview:
         if st.session_state.pdf_data:
             st.success(f"🎉 총 {st.session_state.total_passages}개의 구절이 준비되었습니다!")
