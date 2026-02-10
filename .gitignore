@@ -14,7 +14,16 @@ env/
 output/
 *.pdf
 *.png
+*.jpg
+*.jpeg
 *.log
+test_input.txt
+naver_test_input.txt
+origin_test.txt
+
+# Database files (DO NOT IGNORE - GitHub is used as DB)
+# challenge_db.json
+# custom_meanings.json
 
 # IDEs
 .vscode/
