@@ -104,8 +104,8 @@ with st.sidebar:
         
         st.subheader("한자 뜻 고치기")
         col1, col2 = st.columns([1, 2])
-        new_char = col1.text_input("한자", max_chars=1, key="sb_char")
-        new_meaning = col2.text_input("훈음", key="sb_meaning")
+        new_char = col1.text_input("한자", max_chars=1, key="sb_char", placeholder="예: 說")
+        new_meaning = col2.text_input("훈음", key="sb_meaning", placeholder="예: 기쁠 열")
         if st.button("내 사전에 반영", use_container_width=True):
             if new_char and new_meaning:
                 save_custom_meaning(new_char, new_meaning); st.rerun()
