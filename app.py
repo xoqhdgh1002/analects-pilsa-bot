@@ -12,7 +12,7 @@ import pandas as pd
 # 페이지 설정
 st.set_page_config(page_title="논어 필사 PDF 생성기", page_icon="📝", layout="wide")
 
-# CSS 스타일 (캐싱된 스타일 적용)
+# CSS 스타일
 @st.cache_data
 def get_css():
     return """
@@ -41,8 +41,6 @@ if 'pdf_data' not in st.session_state:
     st.session_state.pdf_data = None
 if 'preview_images' not in st.session_state:
     st.session_state.preview_images = []
-if 'total_passages' not in st.session_state:
-    st.session_state.total_passages = 0
 
 # ---------------------------------------------------------------------------
 # 로그인 화면
@@ -68,10 +66,8 @@ user_name = st.session_state.user_name
 
 with st.sidebar:
     st.header(f"🏃 {user_name}님")
-    p_count, d_count = get_user_stats(user_name) 
-    col_m1, col_m2 = st.columns(2)
-    col_m1.metric("누적 출석", f"{d_count}일")
-    col_m2.metric("누적 구절", f"{p_count}개")
+    d_count = get_user_stats(user_name)
+    st.metric("누적 출석", f"{d_count}일")
     
     with st.expander("🏆 명예의 전당 (Top 5)"):
         leaderboard = get_leaderboard()
@@ -116,20 +112,8 @@ col_left, col_right = st.columns([1, 1], gap="large")
 with col_left:
     st.markdown("### 🖋️ 데이터 입력")
     user_input = st.text_area(
-        "필사할 내용을 입력하세요.",
-        placeholder="""260210
-9.자한편
-30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
-(자왈: "지자불혹, 인자불우, 용자불구.")
-
-공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다."
-
-260210
-9.자한편
-29.子曰: "歲寒, 然後知松栢之後彫也."
-(자왈: "세한, 연후지송백지후조야.")
-
-공자께서 말씀하셨다. "날씨가 추워진 뒤에야 소나무와 잣나무가 늦게 시듦을 안다." """,
+        "필사 내용을 입력하세요.",
+        placeholder="260210\n9.자한편\n30.子曰: \"知者不惑...\"",
         height=600, label_visibility="collapsed"
     )
     
@@ -144,11 +128,13 @@ with col_left:
                             pdf_path = Path(tmpdir) / "output.pdf"
                             generator = AnalectsTracingPDF(Config(), str(font_path))
                             generator.generate(passages, str(pdf_path))
-                            add_log(user_name, len(passages))
+                            
+                            # 챌린지 기록 (구절 수 없이 이름만 전달)
+                            result = add_log(user_name)
+                            
                             with open(pdf_path, "rb") as f:
                                 st.session_state.pdf_data = f.read()
                             st.session_state.preview_images = convert_from_path(str(pdf_path))
-                            st.session_state.total_passages = len(passages)
                             st.rerun()
             except Exception as e: st.error(f"오류: {e}")
 
@@ -156,7 +142,7 @@ with col_right:
     tab_p, tab_g = st.tabs(["👀 미리보기 & 다운로드", "📖 사용 가이드"])
     with tab_p:
         if st.session_state.pdf_data:
-            st.success(f"🎉 **{user_name}**님, {st.session_state.total_passages}구절 완료!")
+            st.success(f"🎉 **{user_name}**님, 필사 노트 생성 완료! (오늘 출석했습니다 ✅)")
             st.download_button("📥 PDF 다운로드", data=st.session_state.pdf_data, file_name="analects_tracing.pdf", mime="application/pdf", use_container_width=True)
             with st.container(height=600, border=True):
                 for img in st.session_state.preview_images:
@@ -166,20 +152,8 @@ with col_right:
                 st.info("👈 왼쪽에서 입력 후 생성 버튼을 눌러주세요.")
 
     with tab_g:
-        st.markdown("### 📋 입력 형식 가이드")
-        st.markdown("""
-        **1. 날짜**: 6자리 숫자 (선택)
-        **2. 편명**: 숫자.이름 (예: 9.자한편)
-        **3. 원문**: 숫자.한자 (예: 30.子曰: ...)
-        **4. 음독**: (한글소리) - *필수*
-        **5. 해석**: 한글 뜻풀이
-        """)
-        st.code("""260210
-9.자한편
-30.子曰: "知者不惑, 仁者不憂, 勇者不懼."
-(자왈: "지자불혹, 인자불우, 용자불구.")
-
-공자께서 말씀하셨다. "지혜로운 사람은 미혹되지 않고, 어진 사람은 근심하지 않고, 용감한 사람은 두려워하지 않는다." """, language="text")
+        st.markdown("### 📋 입력 형식")
+        st.code("260210\n9.자한편\n30.子曰: \"知者不惑...\"\n(자왈: \"지자불혹...\")\n해석 내용...", language="text")
 
 st.markdown("---")
 st.caption(f"Analects Tracing Bot v2.0 | User: {user_name}")
