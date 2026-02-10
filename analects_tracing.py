@@ -62,6 +62,7 @@ class Config:
     interp_height: float = 8.0
     reading_height: float = 6.0
     meaning_height: float = 5.0
+    meaning_box_height: float = 6.0  # Height for manual meaning writing box
     row_gap: float = 4.0
     passage_gap: float = 12.0
 
@@ -76,6 +77,7 @@ class Config:
     color_border: tuple = (180, 180, 180)
     color_cross: tuple = (210, 210, 210)
     color_label: tuple = (60, 60, 60)
+    color_meaning_box: tuple = (200, 200, 200) # Color for meaning box border
 
     # Font size ratio (relative to cell size)
     font_ratio: float = 0.78
@@ -189,6 +191,15 @@ class AnalectsTracingPDF:
         self.pdf.set_line_width(cfg.border_width)
         self.pdf.rect(x, y, size, size)
 
+    def draw_meaning_box(self, x: float, y: float, width: float, height: float):
+        """훈음을 직접 쓸 수 있는 빈 상자를 그립니다."""
+        cfg = self.cfg
+        self.pdf.set_draw_color(*cfg.color_meaning_box)
+        self.pdf.set_line_width(0.2)
+        # 윗변은 그리지 않고(오픈된 느낌) 좌, 우, 아래만 그리거나
+        # 전체 사각형을 연하게 그림. 여기서는 전체 사각형 사용.
+        self.pdf.rect(x, y, width, height)
+
     # ----- Row renderers -----
 
     def _start_x(self, chars_in_line: int, cell_size: float) -> float:
@@ -199,28 +210,59 @@ class AnalectsTracingPDF:
         self, chars: list[str], interpretation: str,
         cell_size: float, chars_per_line: int, y_start: float,
         reading: str = "",
+        sounds: list[str] = None,
     ) -> float:
         """
-        Row 1: 진한 원문 글자 + 음독 + 한글 해석 (자동 줄바꿈 지원)
+        Row 1: 진한 원문 글자 (아래에 훈음 표시) + 음독 + 한글 해석 (자동 줄바꿈 지원)
         """
         cfg = self.cfg
         font_size = self.calculate_font_size(cell_size)
         y = y_start
+        
+        # 행 높이: 셀 크기 + 훈음 표시 높이
+        row_height = cell_size + cfg.meaning_height
 
-        lines = [chars[i:i + chars_per_line] for i in range(0, len(chars), chars_per_line)]
+        # chars와 sounds를 함께 묶어서 처리
+        # sounds가 없으면 None으로 채워진 리스트 생성
+        if not sounds:
+            sounds = [None] * len(chars)
 
-        for line_chars in lines:
+        # Chunking chars and sounds together
+        lines_chars = [chars[i:i + chars_per_line] for i in range(0, len(chars), chars_per_line)]
+        lines_sounds = [sounds[i:i + chars_per_line] for i in range(0, len(sounds), chars_per_line)]
+
+        for line_chars, line_sounds in zip(lines_chars, lines_sounds):
             x = self._start_x(len(line_chars), cell_size)
-            self.pdf.set_font("CJK", "", font_size)
-            self.pdf.set_text_color(*cfg.color_original)
-            for ch in line_chars:
+            for ch, sound in zip(line_chars, line_sounds):
+                # 1. Original Character
+                self.pdf.set_font("CJK", "", font_size)
+                self.pdf.set_text_color(*cfg.color_original)
                 self.pdf.text(
                     x + (cell_size - self.pdf.get_string_width(ch)) / 2,
                     y + cell_size * 0.72,
                     ch,
                 )
+                
+                # 2. Meaning (Hanja Hun-Eum) below character
+                # 소리(sound) 정보를 함께 넘겨서 정확한 훈음을 찾음
+                meaning = get_hanja_meaning(ch, preferred_sound=sound)
+                if meaning:
+                    self.pdf.set_font("CJK", "", 7)
+                    self.pdf.set_text_color(*cfg.color_interpretation)
+                    
+                    m_width = self.pdf.get_string_width(meaning)
+                    m_x = x + (cell_size - m_width) / 2
+                    m_y = y + cell_size + cfg.meaning_height * 0.7
+                    
+                    if m_width > cell_size + 2: 
+                        self.pdf.set_font("CJK", "", 5)
+                        m_width = self.pdf.get_string_width(meaning)
+                        m_x = x + (cell_size - m_width) / 2
+                    
+                    self.pdf.text(m_x, m_y, meaning)
+
                 x += cell_size
-            y += cell_size
+            y += row_height
 
         text_x = cfg.margin_left + 1
 
@@ -246,16 +288,16 @@ class AnalectsTracingPDF:
         chars_per_line: int, y_start: float,
     ) -> float:
         """
-        Row 2: 연한 회색 글자 + 격자 + 십자 점선 (따라쓰기) + 훈음
+        Row 2: 연한 회색 글자 + 격자 + 십자 점선 (따라쓰기) + 훈음 쓰기 빈 칸
         """
         cfg = self.cfg
         font_size = self.calculate_font_size(cell_size)
         y = y_start
         
-        # 행 높이: 셀 크기 + 훈음 높이
-        row_height = cell_size + cfg.meaning_height
+        # 행 높이: 셀 크기 + 훈음 쓰기 박스 높이
+        row_height = cell_size + cfg.meaning_box_height
 
-        # 페이지 하단 체크: 따라쓰기 행이 잘릴 것 같으면 새 페이지
+        # 페이지 하단 체크
         n_rows = math.ceil(len(chars) / chars_per_line)
         if y + (n_rows * row_height) > cfg.page_height - cfg.margin_bottom:
             self.pdf.add_page()
@@ -276,26 +318,10 @@ class AnalectsTracingPDF:
                     ch,
                 )
                 
-                # 2. Meaning (Hanja Hun-Eum)
-                meaning = get_hanja_meaning(ch)
-                if meaning:
-                    # 훈음 폰트 설정 (작게)
-                    self.pdf.set_font("CJK", "", 7)
-                    self.pdf.set_text_color(*cfg.color_interpretation)
-                    
-                    # 텍스트 너비 계산하여 중앙 정렬
-                    m_width = self.pdf.get_string_width(meaning)
-                    m_x = x + (cell_size - m_width) / 2
-                    m_y = y + cell_size + cfg.meaning_height * 0.7
-                    
-                    # 셀 영역 밖으로 너무 나가면 글자 크기 더 줄이기
-                    if m_width > cell_size + 2: 
-                        self.pdf.set_font("CJK", "", 5)
-                        m_width = self.pdf.get_string_width(meaning)
-                        m_x = x + (cell_size - m_width) / 2
-                    
-                    self.pdf.text(m_x, m_y, meaning)
-
+                # 2. Blank Box for Meaning (훈음 쓰기 칸)
+                # 격자 바로 아래에 위치
+                self.draw_meaning_box(x, y + cell_size, cell_size, cfg.meaning_box_height)
+                
                 x += cell_size
             y += row_height
 
@@ -306,14 +332,17 @@ class AnalectsTracingPDF:
         chars_per_line: int, y_start: float,
     ) -> float:
         """
-        Row 3: 빈 격자 + 십자 점선 (자유 필사)
+        Row 3: 빈 격자 + 십자 점선 (자유 필사) + 훈음 쓰기 빈 칸
         """
         cfg = self.cfg
         y = y_start
         
-        # 페이지 하단 체크: 빈 격자 행이 잘릴 것 같으면 새 페이지
+        # 행 높이: 셀 크기 + 훈음 쓰기 박스 높이
+        row_height = cell_size + cfg.meaning_box_height
+
+        # 페이지 하단 체크
         n_rows = math.ceil(n_chars / chars_per_line)
-        if y + (n_rows * cell_size) > cfg.page_height - cfg.margin_bottom:
+        if y + (n_rows * row_height) > cfg.page_height - cfg.margin_bottom:
             self.pdf.add_page()
             y = cfg.margin_top
 
@@ -322,10 +351,15 @@ class AnalectsTracingPDF:
             n_in_line = min(remaining, chars_per_line)
             x = self._start_x(n_in_line, cell_size)
             for _ in range(n_in_line):
+                # 1. Grid
                 self.draw_grid_cell(x, y, cell_size)
+                
+                # 2. Blank Box for Meaning
+                self.draw_meaning_box(x, y + cell_size, cell_size, cfg.meaning_box_height)
+
                 x += cell_size
             remaining -= n_in_line
-            y += cell_size
+            y += row_height
 
         return y
 
@@ -364,6 +398,19 @@ class AnalectsTracingPDF:
         n = len(chars)
         cell_size, cpl = self.calculate_layout(n)
 
+        # 음독에서 한글 소리 추출 및 매핑
+        sounds = []
+        if passage.reading:
+            extracted_sounds = list(_extract_hangul(passage.reading))
+            # 한자 개수와 한글 소리 개수가 일치할 때만 매핑 사용
+            if len(extracted_sounds) == n:
+                sounds = extracted_sounds
+            else:
+                # 개수가 맞지 않으면 매핑하지 않음 (기본 훈음 사용)
+                sounds = [None] * n
+        else:
+            sounds = [None] * n
+
         # 항상 새 페이지 추가 (단, 첫 페이지가 비어있는 경우는 제외)
         if self.pdf.page == 0:
             self.pdf.add_page()
@@ -383,6 +430,7 @@ class AnalectsTracingPDF:
         y = self.render_original_row(
             chars, passage.interpretation, cell_size, cpl, y,
             reading=passage.reading,
+            sounds=sounds,
         )
         y += cfg.row_gap
 
@@ -435,6 +483,11 @@ def _contains_cjk(text: str) -> bool:
 def _extract_cjk(text: str) -> str:
     """텍스트에서 한자(CJK) 문자만 추출합니다."""
     return "".join(ch for ch in text if _is_cjk(ch))
+
+
+def _extract_hangul(text: str) -> str:
+    """텍스트에서 한글(가-힣) 문자만 추출합니다."""
+    return "".join(ch for ch in text if "\uac00" <= ch <= "\ud7a3")
 
 
 def parse_text_input(text: str) -> list[PassageData]:
