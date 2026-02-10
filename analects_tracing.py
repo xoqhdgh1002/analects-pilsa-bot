@@ -207,7 +207,7 @@ class AnalectsTracingPDF:
                 self.pdf.set_text_color(*cfg.color_original)
                 self.pdf.text(
                     x + (cell_size - self.pdf.get_string_width(ch)) / 2,
-                    y + cell_size * 0.72,
+                    y + cell_size * 0.82,
                     ch,
                 )
                 
@@ -273,7 +273,7 @@ class AnalectsTracingPDF:
                 self.pdf.set_text_color(*cfg.color_ghost)
                 self.pdf.text(
                     x + (cell_size - self.pdf.get_string_width(ch)) / 2,
-                    y + cell_size * 0.72,
+                    y + cell_size * 0.82,
                     ch,
                 )
                 self.draw_meaning_box(x, y + cell_size, cell_size, cfg.meaning_box_height)
