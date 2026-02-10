@@ -10,6 +10,16 @@ import os
 # 페이지 설정
 st.set_page_config(page_title="논어 필사 PDF 생성기", page_icon="📝", layout="wide")
 
+# 탭 글자 크기 조절을 위한 CSS
+st.markdown("""
+    <style>
+    .stTabs [data-baseweb="tab"] p {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("📝 논어 필사 PDF 생성기")
 
 # ---------------------------------------------------------------------------
