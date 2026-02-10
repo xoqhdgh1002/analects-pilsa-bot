@@ -16,10 +16,10 @@ st.title("📝 논어 필사 PDF 생성기")
 # Sidebar: 사용자 정의 사전 편집
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.header("📚 사용자 사전 편집")
-    st.caption("특정 한자의 뜻을 직접 지정할 수 있습니다.")
+    st.header("📚 한자 사전 관리")
+    st.caption("특정 한자의 뜻을 내 입맛에 맞게 고칠 수 있습니다.")
     
-    with st.expander("사전 데이터 확인/수정", expanded=False):
+    with st.expander("현재 등록된 한자 뜻 보기", expanded=False):
         # 현재 사전 표시
         custom_dict = get_custom_dict()
         if custom_dict:
@@ -29,10 +29,10 @@ with st.sidebar:
                 hide_index=True
             )
         else:
-            st.info("등록된 사용자 정의 뜻이 없습니다.")
+            st.info("직접 수정한 한자 뜻이 아직 없습니다.")
 
         st.markdown("---")
-        st.subheader("새로운 뜻 추가")
+        st.subheader("한자 뜻 고치기/추가")
         
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -40,22 +40,23 @@ with st.sidebar:
         with col2:
             new_meaning = st.text_input("훈음 (뜻 소리)", placeholder="예: 기쁠 열")
             
-        if st.button("사전 저장 (Local)", use_container_width=True):
+        if st.button("내 사전에 반영하기", use_container_width=True):
             if new_char and new_meaning:
                 save_custom_meaning(new_char, new_meaning)
-                st.success(f"저장 완료: {new_char} -> {new_meaning}")
+                st.success(f"성공! 이제 '{new_char}'은(는) '{new_meaning}'(으)로 나옵니다.")
                 st.rerun() # 화면 갱신
             else:
                 st.warning("한자와 뜻을 모두 입력해주세요.")
 
-    st.markdown("### Git 동기화")
-    if st.button("GitHub에 변경사항 업로드", type="primary", use_container_width=True):
+    st.markdown("### 서버 저장")
+    st.caption("수정한 내용을 서버에 저장하여 영구히 보존합니다.")
+    if st.button("수정한 내용 서버에 최종 저장하기", type="primary", use_container_width=True):
         try:
-            with st.spinner("GitHub로 업로드 중..."):
+            with st.spinner("서버에 저장 중..."):
                 # 1. Add
                 subprocess.run(["git", "add", "custom_meanings.json"], check=True)
                 
-                # 2. Commit (변경사항이 없으면 에러가 날 수 있으므로 try 처리)
+                # 2. Commit
                 try:
                     subprocess.run(
                         ["git", "commit", "-m", "chore: update custom meanings via streamlit app"], 
@@ -63,7 +64,7 @@ with st.sidebar:
                         capture_output=True
                     )
                 except subprocess.CalledProcessError:
-                    st.info("변경 사항이 없거나 이미 커밋되었습니다.")
+                    st.info("이미 서버와 내용이 같습니다.")
                 
                 # 3. Push
                 result = subprocess.run(
@@ -72,7 +73,7 @@ with st.sidebar:
                     capture_output=True,
                     text=True
                 )
-                st.success("성공적으로 업로드되었습니다! 🎉")
+                st.success("서버 저장 완료! 이제 안전하게 보관됩니다. 🎉")
         except subprocess.CalledProcessError as e:
             st.error(f"Git 업로드 실패: {e.stderr if hasattr(e, 'stderr') else str(e)}")
         except Exception as e:
